@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
-const generateAccessToken = (id, res) => {
-    const accessToken = jwt.sign({ id }, process.env.ACCESS_TOKEN, {
+const generateAccessToken = (userId, res) => {
+    const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN, {
         expiresIn: "30m"
     });
     res.cookie("accessToken", accessToken, {
@@ -12,8 +12,8 @@ const generateAccessToken = (id, res) => {
     return accessToken;
 }
 
-const generateRefreshToken = (id, res) => {
-    const refreshToken = jwt.sign({ id }, process.env.REFRESH_TOKEN, {
+const generateRefreshToken = (userId, res) => {
+    const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN, {
         expiresIn: "7d"
     });
     res.cookie("refreshToken", refreshToken, {
@@ -24,9 +24,12 @@ const generateRefreshToken = (id, res) => {
     return refreshToken;
 }
 
-const updateToken = (id, refreshToken, storedToken, res) => {
+const updateToken = (userId, refreshToken, storedToken, res) => {
     const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN)
-    if (decode.id != id || refreshToken != storedToken)
+    if (decode.userId != userId || refreshToken != storedToken)
         throw new Error("No Authintication!")
-    generateAccessToken(id, res)
+    generateAccessToken(userId, res)
 }
+
+
+export { generateAccessToken, generateRefreshToken, updateToken }
