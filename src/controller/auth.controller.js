@@ -4,18 +4,19 @@ import User from "../model/user.model.js";
 
 const trimParams = (inputUser) => {
     const user = {
-        userName: inputUser.userName.trim(),
+        userName: (inputUser.userName || "").trim(),
         fullName: {
-            firstName: inputUser.fullName.firstName.trim(),
-            lastName: inputUser.fullName.lastName.trim()
+            firstName: (inputUser.fullName?.firstName || "").trim(),
+            lastName: (inputUser.fullName?.lastName || "").trim()
         },
-        email: inputUser.email.trim(),
-        password: inputUser.password.trim()
+        email: (inputUser.email || "").trim(),
+        password: (inputUser.password || "").trim()
     }
     return user;
 }
 
 const validateUser = (user, storedUser) => {
+    console.log(user);
     if (storedUser && user.userName.trim() === storedUser.userName)
         throw new Error("username is used!");
     else if (storedUser && user.email.trim() === storedUser.email)
