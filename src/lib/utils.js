@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import Session from "../model/session.model.js";
 
 const generateAccessToken = (userId, res) => {
     const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN, {
@@ -24,11 +25,13 @@ const generateRefreshToken = (userId, res) => {
     return refreshToken;
 }
 
-const updateToken = (userId, refreshToken, storedToken, res) => {
-    const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN)
-    if (decode.userId != userId || refreshToken != storedToken)
+const updateToken = async (refreshToken, res) => {
+    const decode = jwt.verify(refreshToken, process.env.REFRESH_TOKEN);
+    const storedToken = await Session.findOne({ userId: decode.userId });
+    if (refreshToken != storedToken.refreshToken)
         throw new Error("No Authintication!")
-    generateAccessToken(userId, res)
+    generateAccessToken(decode.userId, res)
+    return decode.userId;
 }
 
 

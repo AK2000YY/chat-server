@@ -7,7 +7,22 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server)
 
+const userMap = {};
+
+function getUserSocketId(id) {
+    return userMap[id];
+}
+
 io.on("connection", (socket) => {
+    const userId = socket.handshake.query.id;
+    if (userId) userMap[userId] = socket.id;
+
+    io.emit("getOnlineUser", Object.keys(userMap));
+
+    socket.on("disconnect", () => {
+        delete userMap[userId];
+        io.emit("getOnlineUser", Object.keys(userMap));
+    })
 })
 
-export { app, server, io }
+export { app, server, io, getUserSocketId }
