@@ -1,4 +1,5 @@
-import { generateAccessToken, generateRefreshToken } from "../lib/utils.js";
+import jwt from "jsonwebtoken";
+import { generateAccessToken, generateRefreshToken, updateToken } from "../lib/utils.js";
 import Session from "../model/session.model.js";
 import User from "../model/user.model.js";
 
@@ -44,9 +45,9 @@ const login = async (req, res) => {
         if (!user || !await user.comparePassword(password))
             throw new Error("infromation is'nt validate!")
         generateAccessToken(user._id, res);
+        const refreshToken = generateRefreshToken(user._id, res);
         const storedRefreshToken = await Session.findOne({ userId: user._id })
         if (!storedRefreshToken) {
-            const refreshToken = generateRefreshToken(user._id, res);
             await Session.create({ refreshToken, userId: user._id });
         } else {
             res.cookie("refreshToken", storedRefreshToken, {
@@ -74,4 +75,24 @@ const logout = async (req, res) => {
 }
 
 
-export { signup, login, logout }
+const checkAuth = async (req, res) => {
+    try {
+        const { accessToken, refreshToken } = req.cookies;
+        if (!refreshToken)
+            throw Error("no authintication!");
+        const userId = req.id;
+        try {
+            const decode = jwt.verify(accessToken, process.env.ACCESS_TOKEN);
+            const user = await User.findOne({ _id: decode.userId });
+            res.status(201).json(user);
+        } catch (error) {
+            const userId = await updateToken(refreshToken, res);
+            const user = await User.findOne({ _id: userId });
+        }
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+}
+
+
+export { signup, login, logout, checkAuth }
