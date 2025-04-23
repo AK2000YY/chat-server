@@ -17,12 +17,19 @@ const trimParams = (inputUser) => {
 }
 
 const validateUser = (user, storedUser) => {
-    console.log(user);
-    if (storedUser && user.userName.trim() === storedUser.userName)
+    if (storedUser && user.userName === storedUser.userName)
         throw new Error("username is used!");
-    else if (storedUser && user.email.trim() === storedUser.email)
+    else if (storedUser && user.email === storedUser.email)
         throw new Error("email is used!");
-    else if (user.password.trim().length < 6)
+    else if (user.userName.length < 3)
+        throw new Error("username must be at least 3 character!")
+    else if (user.fullName.firstName.length < 3)
+        throw new Error("first name must be at least 3 character!")
+    else if (user.fullName.lastName.length < 3)
+        throw new Error("last name must be at least 3 character!")
+    else if (! /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(user.email))
+        throw new Error("enter a valid email!");
+    else if (user.password.length < 6)
         throw new Error("password dosn't be less than 6 character!");
 }
 
@@ -50,13 +57,13 @@ const login = async (req, res) => {
         if (!storedRefreshToken) {
             await Session.create({ refreshToken, userId: user._id });
         } else {
-            res.cookie("refreshToken", storedRefreshToken, {
+            res.cookie("refreshToken", storedRefreshToken.refreshToken, {
                 maxAge: 7 * 24 * 60 * 60 * 1000,
                 httpOnly: true,
                 sameSite: "strict"
             });
         }
-        res.status(201).json({ message: "login is successed!" })
+        res.status(201).json({ _id: user._id })
     } catch (e) {
         res.status(500).json({ message: e.message })
     }
@@ -88,6 +95,7 @@ const checkAuth = async (req, res) => {
         } catch (error) {
             const userId = await updateToken(refreshToken, res);
             const user = await User.findOne({ _id: userId });
+            res.status(201).json(user);
         }
     } catch (e) {
         res.status(500).json({ message: e.message });
