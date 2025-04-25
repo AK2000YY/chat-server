@@ -3,18 +3,19 @@ import { deleteMessage, getMessage, getChanges, sendMessage, updateMessage } fro
 import upload from "../lib/multer.js";
 import protect from "../middleware/auth.middleware.js";
 
+
 const messageRoute = express.Router();
 
 
-messageRoute.get("/", getMessage);
+messageRoute.get("/", protect, getMessage);
 
-messageRoute.get("/getChanges", getChanges);
+messageRoute.get("/getChanges", protect, getChanges);
 
-messageRoute.post("/message", protect, upload.single('avatar'), sendMessage);
+messageRoute.post("/", protect, upload.single('avatar'), sendMessage);
 
-messageRoute.patch("/:message", updateMessage);
+messageRoute.patch("/", protect, updateMessage);
 
-messageRoute.delete("/:message", deleteMessage);
+messageRoute.delete("/", protect, deleteMessage);
 
 
 export default messageRoute;
