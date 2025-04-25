@@ -6,6 +6,7 @@ import authRoute from "./route/auth.route.js";
 import cookieParser from "cookie-parser";
 import messageRoute from "./route/message.route.js";
 import cors from "cors";
+import friendRouter from "./route/friend.route.js";
 
 dotenv.config();
 app.use(express.json());
@@ -19,8 +20,9 @@ app.use(
 const PORT = process.env.PORT;
 
 app.use('/auth', authRoute);
-app.use('/uploads', express.static("src/media"));
+app.use('/friend', friendRouter);
 app.use('/message', messageRoute);
+app.use('/uploads', express.static("src/media"));
 
 server.listen(PORT, () => {
     console.log("server is running...")
