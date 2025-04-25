@@ -8,6 +8,10 @@ const userSchema = mongoose.Schema({
         unique: true,
         trim: true
     },
+    avater: {
+        type: String,
+        default: ""
+    },
     fullName: {
         firstName: {
             type: String,
