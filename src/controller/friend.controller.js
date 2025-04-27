@@ -3,7 +3,7 @@ import Friend from "../model/friend.model.js";
 const getFriends = async (req, res) => {
     try {
         const userId = req.id;
-        const frinds = await Friend.find({ user: userId }).populate("friend", "userName fullName avater");
+        const frinds = await Friend.find({ user: userId }).populate("friend", "_id userName fullName avater");
         res.status(201).json(frinds.map(friend => friend.friend))
     } catch (e) {
         res.status(500).json({ message: e.message });
