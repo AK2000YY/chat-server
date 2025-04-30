@@ -1,24 +1,23 @@
 import { io, getUserSocketId } from "../lib/socket.js";
 import Message from "../model/message.model.js";
-import mongoose from "mongoose";
 
 const getMessage = async (req, res) => {
     try {
         const userId = req.id;
+        const friendId = req.body.friendId;
         const messageId = req.body.messageId;
         let messages;
         if (!messageId) {
             messages = await Message
                 .find({
                     $or: [
-                        { sender: userId },
-                        { receiver: userId }
+                        { $and: [{ sender: userId }, { receiver: friendId }] },
+                        { $and: [{ sender: friendId }, { receiver: userId }] }
                     ]
                 })
                 .sort({ _id: -1 })
                 .limit(20);
-        }
-        else {
+        } else {
             messages = await Message
                 .find({
                     _id: { $lt: messageId },
@@ -36,30 +35,13 @@ const getMessage = async (req, res) => {
     }
 }
 
-const getChanges = async (req, res) => {
+const getUnsentMessages = async (req, res) => {
     try {
         const userId = req.id;
-        const messages = await Message.aggregate([
-            {
-                $match: {
-                    receiver: new mongoose.Types.ObjectId(userId + ""),
-                    messageStatus: "sent"
-                }
-            },
-            {
-                $group: {
-                    _id: "$sender",
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $project: {
-                    sender: "$_id",
-                    count: 1,
-                    _id: 0
-                }
-            }
-        ]);
+        const messages = await Message.find({
+            receiver: userId,
+            messageStatus: "sent"
+        });
 
         await Message.updateMany(
             { receiver: userId, messageStatus: "sent" },
@@ -101,11 +83,15 @@ const sendMessage = async (req, res) => {
         const receiver = req.body.receiver;
         if (message === "" && media === "")
             throw new Error("message is empty!");
-        await Message.create({ media, message, sender, receiver });
+        let messageRes = await Message.create({ media, message, sender, receiver });
         const receiverSocket = getUserSocketId(receiver);
         if (receiverSocket)
-            io.to(receiverSocket).emit("message", { media, message, sender, receiver });
-        res.status(201).json({ message: "message is sent!" })
+            io.to(receiverSocket).emit("message", { messageRes: { ...messageRes.toObject(), messageStatus: "delivere" } }, async (ack) => {
+                if (ack && ack.received) {
+                    messageRes = await Message.findByIdAndUpdate(messageRes._id, { messageStatus: "delivere" })
+                }
+            });
+        res.status(201).json(messageRes)
     } catch (e) {
         res.status(500).json({ message: e.message });
     }
@@ -118,4 +104,4 @@ const deleteMessage = async (req, res) => {
 }
 
 
-export { getMessage, sendMessage, updateMessage, deleteMessage, getChanges, updateToRead };
+export { getMessage, sendMessage, updateMessage, deleteMessage, getUnsentMessages, updateToRead };
