@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { io, getUserSocketId } from "../lib/socket.js";
 import Message from "../model/message.model.js";
 
@@ -38,18 +39,23 @@ const getMessage = async (req, res) => {
 const getUnsentMessages = async (req, res) => {
     try {
         const userId = req.id;
-        const messages = await Message.find({
-            receiver: userId,
-            messageStatus: "sent"
-        });
+        const messages = await Message
+            .find(
+                {
+                    receiver: userId,
+                    messageStatus: "sent"
+                }
+            )
+            .sort({ sender: 1 });
 
         await Message.updateMany(
             { receiver: userId, messageStatus: "sent" },
             { $set: { messageStatus: "delivere" } }
-        )
+        );
 
-        messages.forEach(ele => {
-            io.to(ele.sender).emit("delivere", userId);
+        messages.filter(ele => {
+            const sender = getUserSocketId(ele.sender);
+            if (sender) io.to(ele.sender).emit("delivere", ele);
         });
 
         res.status(201).json(messages);
@@ -60,15 +66,32 @@ const getUnsentMessages = async (req, res) => {
 
 const updateToRead = async (req, res) => {
     try {
-        const userId = req.id;
-        const senderId = req.body.senderId;
+        const receiverId = req.id;
         const messageId = req.body.messageId;
-        await Message.findOneAndUpdate({ _id: messageId, receiver: userId }, { $set: { messageStatus: "read" } });
-        const snederSocket = getUserSocketId(senderId);
-        if (snederSocket)
-            io.to(snederSocket).emit("read", messageId);
-        res.status(201).json({ message: "message is read!" })
+        const message = await Message.findByIdAndUpdate(messageId,
+            [
+                {
+                    $set: {
+                        messageStatus: {
+                            $cond: {
+                                if: { $eq: ["$receiver", new mongoose.Types.ObjectId(receiverId + "")] },
+                                then: "read",
+                                else: "$messageStatus"
+                            }
+                        }
+                    }
+                }
+            ],
+            {
+                new: true
+            }
+        );
+        const sender = getUserSocketId(message.sender);
+        if (sender)
+            io.to(sender).emit("read", messageId);
+        res.status(201).json("ok");
     } catch (e) {
+        console.log(e);
         res.status(500).json({ message: e.message })
     }
 }
@@ -86,11 +109,14 @@ const sendMessage = async (req, res) => {
         let messageRes = await Message.create({ media, message, sender, receiver });
         const receiverSocket = getUserSocketId(receiver);
         if (receiverSocket)
-            io.to(receiverSocket).emit("message", { messageRes: { ...messageRes.toObject(), messageStatus: "delivere" } }, async (ack) => {
-                if (ack && ack.received) {
-                    messageRes = await Message.findByIdAndUpdate(messageRes._id, { messageStatus: "delivere" })
+            io.timeout(5000).to(receiverSocket).emit("message", { messageRes: { ...messageRes.toObject(), messageStatus: "delivere" } }, async (err, response) => {
+                if (response[0].status === 'ok') {
+                    messageRes = await Message.findByIdAndUpdate(messageRes._id, [{ $set: { messageStatus: "delivere" } }], { new: true });
+                } else {
+                    console.log(err);
                 }
             });
+        console.log(messageRes);
         res.status(201).json(messageRes)
     } catch (e) {
         res.status(500).json({ message: e.message });
