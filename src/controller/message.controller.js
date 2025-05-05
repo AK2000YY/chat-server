@@ -30,9 +30,19 @@ const getMessage = async (req, res) => {
                 .sort({ _id: -1 })
                 .limit(20);
         }
-        res.status(201).json({ messages })
+        res.status(201).json(messages)
     } catch (e) {
         res.status(500).json({ message: e.message })
+    }
+}
+
+const checkSentMessage = async (req, res) => {
+    try {
+        const messagesId = req.body.messagesId;
+        const messages = await Message.find({ _id: { $in: messagesId } })
+        res.status(201).json(messages);
+    } catch (e) {
+        res.status(501).json(e.message);
     }
 }
 
@@ -55,7 +65,7 @@ const getUnsentMessages = async (req, res) => {
 
         messages.filter(ele => {
             const sender = getUserSocketId(ele.sender);
-            if (sender) io.to(ele.sender).emit("delivere", ele);
+            if (sender) io.to(sender).emit("delivere", ele._id);
         });
 
         res.status(201).json(messages);
@@ -91,7 +101,6 @@ const updateToRead = async (req, res) => {
             io.to(sender).emit("read", messageId);
         res.status(201).json("ok");
     } catch (e) {
-        console.log(e);
         res.status(500).json({ message: e.message })
     }
 }
@@ -100,28 +109,55 @@ const sendMessage = async (req, res) => {
     try {
         let media = "";
         let message = "";
-        if (req.file && req.file.filename) media = (req.file.filename);
+        if (req.file && req.file.filename) media = req.file.filename;
         if (req.body.message) message = req.body.message;
+
         const sender = req.id;
         const receiver = req.body.receiver;
+
         if (message === "" && media === "")
             throw new Error("message is empty!");
+
         let messageRes = await Message.create({ media, message, sender, receiver });
+
         const receiverSocket = getUserSocketId(receiver);
-        if (receiverSocket)
-            io.timeout(5000).to(receiverSocket).emit("message", { messageRes: { ...messageRes.toObject(), messageStatus: "delivere" } }, async (err, response) => {
-                if (response[0].status === 'ok') {
-                    messageRes = await Message.findByIdAndUpdate(messageRes._id, [{ $set: { messageStatus: "delivere" } }], { new: true });
-                } else {
-                    console.log(err);
-                }
+
+        if (receiverSocket) {
+            const emitResponse = await new Promise((resolve, reject) => {
+                io.timeout(5000).to(receiverSocket).emit(
+                    "message",
+                    { messageRes: { ...messageRes.toObject(), messageStatus: "delivere" } },
+                    (err, response) => {
+                        if (err) return reject(err);
+                        resolve(response);
+                    }
+                );
             });
-        console.log(messageRes);
-        res.status(201).json(messageRes)
+
+            if (emitResponse[0].status === "ok") {
+                messageRes = await Message.findByIdAndUpdate(
+                    messageRes._id,
+                    { $set: { messageStatus: "delivere" } },
+                    { new: true }
+                );
+            }
+        }
+
+        if (messageRes.messageStatus === "delivere") {
+            const senderSocket = getUserSocketId(messageRes.sender);
+            if (senderSocket) {
+                io.to(senderSocket).emit("delivere", messageRes._id);
+            }
+        }
+
+        console.log(messageRes)
+
+        res.status(201).json(messageRes);
     } catch (e) {
         res.status(500).json({ message: e.message });
     }
-}
+};
+
 
 const updateMessage = async (req, res) => {
 }
@@ -130,4 +166,4 @@ const deleteMessage = async (req, res) => {
 }
 
 
-export { getMessage, sendMessage, updateMessage, deleteMessage, getUnsentMessages, updateToRead };
+export { getMessage, checkSentMessage, sendMessage, updateMessage, deleteMessage, getUnsentMessages, updateToRead };
