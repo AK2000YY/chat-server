@@ -63,7 +63,9 @@ const login = async (req, res) => {
                 sameSite: "strict"
             });
         }
-        res.status(201).json({ _id: user._id })
+        const userCopy = user.toObject();
+        delete userCopy.password;
+        res.status(201).json(userCopy);
     } catch (e) {
         res.status(500).json({ message: e.message })
     }

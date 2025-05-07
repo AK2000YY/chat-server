@@ -17,7 +17,7 @@ const getMessage = async (req, res) => {
                     ]
                 })
                 .sort({ _id: -1 })
-                .limit(20);
+                .limit(100);
         } else {
             messages = await Message
                 .find({
@@ -28,9 +28,9 @@ const getMessage = async (req, res) => {
                     ]
                 })
                 .sort({ _id: -1 })
-                .limit(20);
+                .limit(100);
         }
-        res.status(201).json(messages)
+        res.status(201).json(messages.reverse())
     } catch (e) {
         res.status(500).json({ message: e.message })
     }
@@ -149,8 +149,6 @@ const sendMessage = async (req, res) => {
                 io.to(senderSocket).emit("delivere", messageRes._id);
             }
         }
-
-        console.log(messageRes)
 
         res.status(201).json(messageRes);
     } catch (e) {
