@@ -74,6 +74,23 @@ const getUnsentMessages = async (req, res) => {
     }
 }
 
+const getChatPhoto = async (req, res) => {
+    try {
+        const userId = req.id;
+        const friend = req.body.friendId;
+        const photo = await Message.find({
+            media: { $ne: "" },
+            $or: [
+                { sender: userId, receiver: friend },
+                { sender: friend, receiver: userId }
+            ]
+        }, { media: 1 });
+        res.status(201).json(photo);
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+}
+
 const updateToRead = async (req, res) => {
     try {
         const receiverId = req.id;
@@ -164,4 +181,4 @@ const deleteMessage = async (req, res) => {
 }
 
 
-export { getMessage, checkSentMessage, sendMessage, updateMessage, deleteMessage, getUnsentMessages, updateToRead };
+export { getMessage, checkSentMessage, getChatPhoto, sendMessage, updateMessage, deleteMessage, getUnsentMessages, updateToRead };
