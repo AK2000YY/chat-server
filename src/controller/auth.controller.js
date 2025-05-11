@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { generateAccessToken, generateRefreshToken, updateToken } from "../lib/utils.js";
 import Session from "../model/session.model.js";
 import User from "../model/user.model.js";
+import fs from 'fs/promises';
 
 const trimParams = (inputUser) => {
     const user = {
@@ -73,7 +74,7 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
     try {
-        const { userId } = req.body;
+        const userId = req.id;
         await Session.deleteMany({ userId });
         res.clearCookie("refreshToken");
         res.clearCookie("accessToken");
@@ -83,6 +84,44 @@ const logout = async (req, res) => {
     }
 }
 
+const changePhoto = async (req, res) => {
+    try {
+        const id = req.id;
+        const photo = req.file.filename;
+        const oldUser = await User.findById(id);
+        if (oldUser.avater != "") await fs.unlink('src/media/' + oldUser.avater);
+        const user = await User.findByIdAndUpdate(id, { avater: photo }, { new: true });
+        res.status(201).json(user.avater);
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+}
+
+const changeUsername = async (req, res) => {
+    try {
+        const id = req.id;
+        const username = req.body.username;
+        await User.findByIdAndUpdate(id, { $set: { userName: username } });
+        res.status(201).json({ message: "ok" });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+}
+
+const changePassword = async (req, res) => {
+    try {
+        const id = req.id;
+        const { password, newPassword } = req.body;
+        const user = await User.findById(id)
+        if (!user || !await user.comparePassword(password))
+            throw new Error("infromation is'nt validate!")
+        user.password = newPassword;
+        await user.save();
+        res.status(201).json({ message: "ok" });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+}
 
 const checkAuth = async (req, res) => {
     try {
@@ -105,4 +144,4 @@ const checkAuth = async (req, res) => {
 }
 
 
-export { signup, login, logout, checkAuth }
+export { signup, login, logout, changePhoto, changeUsername, changePassword, checkAuth }
