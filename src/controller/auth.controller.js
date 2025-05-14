@@ -101,8 +101,11 @@ const changeUsername = async (req, res) => {
     try {
         const id = req.id;
         const username = req.body.username;
-        await User.findByIdAndUpdate(id, { $set: { userName: username } });
-        res.status(201).json({ message: "ok" });
+        const isFound = await User.findOne({ userName: username, _id: { $ne: id } });
+        if (isFound) throw new Error("username is used!");
+        if (username.trim().length === 0) throw new Error("username is empty!");
+        const newUsername = await User.findByIdAndUpdate(id, { $set: { userName: username } });
+        res.status(201).json(newUsername);
     } catch (e) {
         res.status(500).json({ message: e.message });
     }
