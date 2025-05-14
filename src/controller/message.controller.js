@@ -17,7 +17,7 @@ const getMessage = async (req, res) => {
                     ]
                 })
                 .sort({ _id: -1 })
-                .limit(100);
+                .limit(20);
         } else {
             messages = await Message
                 .find({
@@ -28,10 +28,12 @@ const getMessage = async (req, res) => {
                     ]
                 })
                 .sort({ _id: -1 })
-                .limit(100);
+                .limit(20);
         }
+        console.log(messages);
         res.status(201).json(messages.reverse())
     } catch (e) {
+        console.log(e);
         res.status(500).json({ message: e.message })
     }
 }
